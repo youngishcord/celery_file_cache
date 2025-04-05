@@ -1,0 +1,4 @@
+celery
+pydantic
+pydantic_settings
+redis

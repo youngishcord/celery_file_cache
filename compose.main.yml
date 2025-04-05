@@ -1,10 +1,75 @@
 services:
   rabbit:
-    image: rabbitmq:4-managment
+    image: rabbitmq:management
+    container_name: rabbit
+    hostname: ${RABBIT_HOST}
+    ports:
+      - ${RABBIT_PORT}:5672
+      - ${RABBIT_WEBPORT}:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbit disk_free_limit 2147483648
 
+    volumes:
+      - ./project_volumes/rabbitmq/data/:/var/lib/rabbitmq/
+      - ./project_volumes/rabbitmq/log/:/var/log/rabbitmq
 
-  # redis:
+    networks:
+      - rabbitmq_net
+      - default
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: redis
+    hostname: ${REDIS_HOST}
+
+    ports:
+      - ${REDIS_WEBPORT}:8001
+      - ${REDIS_PORT}:6379
     
-  # minio:
-  
-  # api:
+    volumes:
+      - ./project_volumes/redisdata:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_USER: ${REDIS_USER}
+      REDIS_USER_PASSWORD: ${REDIS_USER_PASSWORD}
+      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD}"
+
+  minio:
+    image: minio/minio:latest  
+    container_name: minio
+    hostname: ${MINIO_HOST}
+    ports:
+      - ${MINIO_PORT}:9000
+      - ${MINIO_WEBPORT}:9001
+
+    volumes:  
+      - ./project_volumes/minio_data:/data  
+      - ./project_volumes/minio_config:/root/.minio  
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+
+    command: server --console-address ":9001" /data
+
+  main_app:
+    container_name: main_app
+    hostname: main_app
+    build:
+      context: ./main_app
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+
+  worker1:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+
+networks:
+  rabbitmq_net:
+    name: rabbitmq_net
+    driver: bridge
